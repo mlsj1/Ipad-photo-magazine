@@ -3,96 +3,79 @@
 
 @implementation PhotoViewController
 
+#pragma mark - View loading and unloading
 
-#pragma mark -
-#pragma mark View loading and unloading
-
-- (void)loadView 
-{    
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
     // Step 1: make the outer paging scroll view
     CGRect pagingScrollViewFrame = [self frameForPagingScrollView];
-    pagingScrollView = [[UIScrollView alloc] initWithFrame:pagingScrollViewFrame];
-    pagingScrollView.pagingEnabled = YES;
-    pagingScrollView.backgroundColor = [UIColor blackColor];
-    pagingScrollView.showsVerticalScrollIndicator = NO;
-    pagingScrollView.showsHorizontalScrollIndicator = NO;
-    pagingScrollView.contentSize = [self contentSizeForPagingScrollView];
-    pagingScrollView.delegate = self;
-    self.view = pagingScrollView;
+    self.pagingScrollView = [[UIScrollView alloc] initWithFrame:pagingScrollViewFrame];
+    self.pagingScrollView.pagingEnabled = YES;
+    self.pagingScrollView.backgroundColor = [UIColor blackColor];
+    self.pagingScrollView.showsVerticalScrollIndicator = NO;
+    self.pagingScrollView.showsHorizontalScrollIndicator = NO;
+    self.pagingScrollView.contentSize = [self contentSizeForPagingScrollView];
+    self.pagingScrollView.delegate = self;
+    self.view = self.pagingScrollView;
 	
     // Step 2: prepare to tile content
-    recycledPages = [[NSMutableSet alloc] init];
-    visiblePages  = [[NSMutableSet alloc] init];
+    self.recycledPages = [[NSMutableSet alloc] init];
+    self.visiblePages  = [[NSMutableSet alloc] init];
     [self tilePages];
 }
 
-- (void)viewDidUnload
-{
+- (void)viewDidUnload {
     [super viewDidUnload];
-    [pagingScrollView release];
-    pagingScrollView = nil;
-    [recycledPages release];
-    recycledPages = nil;
-    [visiblePages release];
-    visiblePages = nil;
+    self.pagingScrollView = nil;
+    self.recycledPages = nil;
+    self.visiblePages = nil;
 }
 
-- (void)dealloc
-{
-    [pagingScrollView release];
-    [super dealloc];
-}
+#pragma mark - Tiling and page configuration
 
-
-#pragma mark -
-#pragma mark Tiling and page configuration
-
-- (void)tilePages 
-{
+- (void)tilePages {
     // Calculate which pages are visible
-    CGRect visibleBounds = pagingScrollView.bounds;
+    CGRect visibleBounds = self.pagingScrollView.bounds;
     int firstNeededPageIndex = floorf(CGRectGetMinX(visibleBounds) / CGRectGetWidth(visibleBounds));
     int lastNeededPageIndex  = floorf((CGRectGetMaxX(visibleBounds)-1) / CGRectGetWidth(visibleBounds));
     firstNeededPageIndex = MAX(firstNeededPageIndex, 0);
     lastNeededPageIndex  = MIN(lastNeededPageIndex, [self imageCount] - 1);
     
     // Recycle no-longer-visible pages 
-    for (ImageScrollView *page in visiblePages) {
+    for (ImageScrollView *page in self.visiblePages) {
         if (page.index < firstNeededPageIndex || page.index > lastNeededPageIndex) {
-            [recycledPages addObject:page];
+            [self.recycledPages addObject:page];
             [page removeFromSuperview];
         }
     }
-    [visiblePages minusSet:recycledPages];
+    [self.visiblePages minusSet:self.recycledPages];
     
     // add missing pages
     for (int index = firstNeededPageIndex; index <= lastNeededPageIndex; index++) {
         if (![self isDisplayingPageForIndex:index]) {
             ImageScrollView *page = [self dequeueRecycledPage];
             if (page == nil) {
-                page = [[[ImageScrollView alloc] init] autorelease];
+                page = [[ImageScrollView alloc] init];
             }
             [self configurePage:page forIndex:index];
-            [pagingScrollView addSubview:page];
-            [visiblePages addObject:page];
+            [self.pagingScrollView addSubview:page];
+            [self.visiblePages addObject:page];
         }
     }    
 }
 
-- (ImageScrollView *)dequeueRecycledPage
-{
-    ImageScrollView *page = [recycledPages anyObject];
+- (ImageScrollView *)dequeueRecycledPage {
+    ImageScrollView *page = [self.recycledPages anyObject];
     if (page) {
-        [[page retain] autorelease];
-        [recycledPages removeObject:page];
+        [self.recycledPages removeObject:page];
     }
     return page;
 }
 
-- (BOOL)isDisplayingPageForIndex:(NSUInteger)index
-{
+- (BOOL)isDisplayingPageForIndex:(NSUInteger)index {
     BOOL foundPage = NO;
-    for (ImageScrollView *page in visiblePages) {
+    for (ImageScrollView *page in self.visiblePages) {
         if (page.index == index) {
             foundPage = YES;
             break;
@@ -101,8 +84,7 @@
     return foundPage;
 }
 
-- (void)configurePage:(ImageScrollView *)page forIndex:(NSUInteger)index
-{
+- (void)configurePage:(ImageScrollView *)page forIndex:(NSUInteger)index {
     page.index = index;
     page.frame = [self frameForPageAtIndex:index];
     
@@ -113,62 +95,55 @@
 	[page displayImage:[self imageAtIndex:index]];
 }
 
+#pragma mark - ScrollView delegate methods
 
-#pragma mark -
-#pragma mark ScrollView delegate methods
-
-- (void)scrollViewDidScroll:(UIScrollView *)scrollView
-{
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
     [self tilePages];
 }
 
-#pragma mark -
-#pragma mark View controller rotation methods
+#pragma mark - View controller rotation methods
 
-- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation 
-{
-    return YES;
-}
-
-- (void)willRotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration
-{
-    // here, our pagingScrollView bounds have not yet been updated for the new interface orientation. So this is a good
-    // place to calculate the content offset that we will need in the new orientation
-    CGFloat offset = pagingScrollView.contentOffset.x;
-    CGFloat pageWidth = pagingScrollView.bounds.size.width;
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+    
+    // Store current state before rotation
+    CGFloat offset = self.pagingScrollView.contentOffset.x;
+    CGFloat pageWidth = self.pagingScrollView.bounds.size.width;
     
     if (offset >= 0) {
-        firstVisiblePageIndexBeforeRotation = floorf(offset / pageWidth);
-        percentScrolledIntoFirstVisiblePage = (offset - (firstVisiblePageIndexBeforeRotation * pageWidth)) / pageWidth;
+        self.firstVisiblePageIndexBeforeRotation = floorf(offset / pageWidth);
+        self.percentScrolledIntoFirstVisiblePage = (offset - (self.firstVisiblePageIndexBeforeRotation * pageWidth)) / pageWidth;
     } else {
-        firstVisiblePageIndexBeforeRotation = 0;
-        percentScrolledIntoFirstVisiblePage = offset / pageWidth;
-    }    
-}
-
-- (void)willAnimateRotationToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration
-{
-    // recalculate contentSize based on current orientation
-    pagingScrollView.contentSize = [self contentSizeForPagingScrollView];
-    
-    // adjust frames and configuration of each visible page
-    for (ImageScrollView *page in visiblePages) {
-        CGPoint restorePoint = [page pointToCenterAfterRotation];
-        CGFloat restoreScale = [page scaleToRestoreAfterRotation];
-        page.frame = [self frameForPageAtIndex:page.index];
-        [page setMaxMinZoomScalesForCurrentBounds];
-        [page restoreCenterPoint:restorePoint scale:restoreScale];
-        
+        self.firstVisiblePageIndexBeforeRotation = 0;
+        self.percentScrolledIntoFirstVisiblePage = offset / pageWidth;
     }
     
-    // adjust contentOffset to preserve page location based on values collected prior to location
-    CGFloat pageWidth = pagingScrollView.bounds.size.width;
-    CGFloat newOffset = (firstVisiblePageIndexBeforeRotation * pageWidth) + (percentScrolledIntoFirstVisiblePage * pageWidth);
-    pagingScrollView.contentOffset = CGPointMake(newOffset, 0);
+    [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        // Update during rotation animation
+        self.pagingScrollView.frame = [self frameForPagingScrollView];
+        self.pagingScrollView.contentSize = [self contentSizeForPagingScrollView];
+        
+        // adjust frames and configuration of each visible page
+        for (ImageScrollView *page in self.visiblePages) {
+            CGPoint restorePoint = [page pointToCenterAfterRotation];
+            CGFloat restoreScale = [page scaleToRestoreAfterRotation];
+            page.frame = [self frameForPageAtIndex:page.index];
+            [page setMaxMinZoomScalesForCurrentBounds];
+            [page restoreCenterPoint:restorePoint scale:restoreScale];
+        }
+        
+        // adjust contentOffset to preserve page location
+        CGFloat newPageWidth = size.width;
+        CGFloat newOffset = (self.firstVisiblePageIndexBeforeRotation * newPageWidth) + (self.percentScrolledIntoFirstVisiblePage * newPageWidth);
+        self.pagingScrollView.contentOffset = CGPointMake(newOffset, 0);
+        
+    } completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        // Ensure everything is properly laid out after rotation
+        [self tilePages];
+    }];
 }
 
-#pragma mark -
-#pragma mark  Frame calculations
+#pragma mark - Frame calculations
 #define PADDING  0
 
 - (CGRect)frameForPagingScrollView {
@@ -184,7 +159,7 @@
     // landscape orientation, the frame will still be in portrait because the pagingScrollView is the root view controller's
     // view, so its frame is in window coordinate space, which is never rotated. Its bounds, however, will be in landscape
     // because it has a rotation transform applied.
-    CGRect bounds = pagingScrollView.bounds;
+    CGRect bounds = self.pagingScrollView.bounds;
     CGRect pageFrame = bounds;
    // pageFrame.size.width -= (2 * PADDING);
     pageFrame.origin.x = (bounds.size.width * index); // + PADDING;
@@ -193,30 +168,20 @@
 
 - (CGSize)contentSizeForPagingScrollView {
     // We have to use the paging scroll view's bounds to calculate the contentSize, for the same reason outlined above.
-    CGRect bounds = pagingScrollView.bounds;
+    CGRect bounds = self.pagingScrollView.bounds;
     return CGSizeMake(bounds.size.width * [self imageCount], bounds.size.height);
 }
 
-
-#pragma mark -
-#pragma mark Image wrangling
+#pragma mark - Image wrangling
 
 - (NSArray *)imageData {
     static NSArray *__imageData = nil; // only load the imageData array once
     if (__imageData == nil) {
         // read the filenames/sizes out of a plist in the app bundle
         NSString *path = [[NSBundle mainBundle] pathForResource:@"ImageData" ofType:@"plist"];
-        NSData *plistData = [NSData dataWithContentsOfFile:path];
-        NSString *error; 
-        NSPropertyListFormat format;
-        __imageData = [[NSPropertyListSerialization propertyListFromData:plistData
-                                                        mutabilityOption:NSPropertyListImmutable
-                                                                  format:&format
-                                                        errorDescription:&error]
-                       retain];
+        __imageData = [NSArray arrayWithContentsOfFile:path];
         if (!__imageData) {
-            NSLog(@"Failed to read image names. Error: %@", error);
-            [error release];
+            NSLog(@"Failed to read image names from: %@", path);
         }
     }
     return __imageData;
@@ -255,6 +220,5 @@
     }
     return __count;
 }
-
 
 @end
