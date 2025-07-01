@@ -1,12 +1,9 @@
-
 #import "ImageScrollView.h"
 //#import "TilingView.h"
 
 @implementation ImageScrollView
-@synthesize index;
 
-- (id)initWithFrame:(CGRect)frame
-{
+- (id)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
         self.showsVerticalScrollIndicator = NO;
         self.showsHorizontalScrollIndicator = NO;
@@ -17,23 +14,15 @@
     return self;
 }
 
-- (void)dealloc
-{
-    [imageView release];
-    [super dealloc];
-}
+#pragma mark - Override layoutSubviews to center content
 
-#pragma mark -
-#pragma mark Override layoutSubviews to center content
-
-- (void)layoutSubviews 
-{
+- (void)layoutSubviews {
     [super layoutSubviews];
     
     // center the image as it becomes smaller than the size of the screen
     
     CGSize boundsSize = self.bounds.size;
-    CGRect frameToCenter = imageView.frame;
+    CGRect frameToCenter = self.imageView.frame;
     
     // center horizontally
     if (frameToCenter.size.width < boundsSize.width)
@@ -47,7 +36,7 @@
     else
         frameToCenter.origin.y = 0;
     
-    imageView.frame = frameToCenter;
+    self.imageView.frame = frameToCenter;
     
 //    if ([imageView isKindOfClass:[TilingView class]]) {
 //        // to handle the interaction between CATiledLayer and high resolution screens, we need to manually set the
@@ -57,41 +46,34 @@
 //    }
 }
 
-#pragma mark -
-#pragma mark UIScrollView delegate methods
+#pragma mark - UIScrollView delegate methods
 
-- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView
-{
-    return imageView;
+- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
+    return self.imageView;
 }
 
-#pragma mark -
-#pragma mark Configure scrollView to display new image (tiled or not)
+#pragma mark - Configure scrollView to display new image (tiled or not)
 
-- (void)displayImage:(UIImage *)image
-{
+- (void)displayImage:(UIImage *)image {
     // clear the previous imageView
-    [imageView removeFromSuperview];
-    [imageView release];
-    imageView = nil;
+    [self.imageView removeFromSuperview];
+    self.imageView = nil;
     
     // reset our zoomScale to 1.0 before doing any further calculations
     self.zoomScale = 1.0;
     
     // make a new UIImageView for the new image
-    imageView = [[UIImageView alloc] initWithImage:image];
-    [self addSubview:imageView];
+    self.imageView = [[UIImageView alloc] initWithImage:image];
+    [self addSubview:self.imageView];
     
     self.contentSize = [image size];
     [self setMaxMinZoomScalesForCurrentBounds];
     self.zoomScale = self.minimumZoomScale;
 }
 
-
-- (void)setMaxMinZoomScalesForCurrentBounds
-{
+- (void)setMaxMinZoomScalesForCurrentBounds {
     CGSize boundsSize = self.bounds.size;
-    CGSize imageSize = imageView.bounds.size;
+    CGSize imageSize = self.imageView.bounds.size;
     
     // calculate min/max zoomscale
     CGFloat xScale = boundsSize.width / imageSize.width;    // the scale needed to perfectly fit the image width-wise
@@ -111,19 +93,16 @@
     self.minimumZoomScale = minScale;
 }
 
-#pragma mark -
-#pragma mark Methods called during rotation to preserve the zoomScale and the visible portion of the image
+#pragma mark - Methods called during rotation to preserve the zoomScale and the visible portion of the image
 
 // returns the center point, in image coordinate space, to try to restore after rotation. 
-- (CGPoint)pointToCenterAfterRotation
-{
+- (CGPoint)pointToCenterAfterRotation {
     CGPoint boundsCenter = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-    return [self convertPoint:boundsCenter toView:imageView];
+    return [self convertPoint:boundsCenter toView:self.imageView];
 }
 
 // returns the zoom scale to attempt to restore after rotation. 
-- (CGFloat)scaleToRestoreAfterRotation
-{
+- (CGFloat)scaleToRestoreAfterRotation {
     CGFloat contentScale = self.zoomScale;
     
     // If we're at the minimum zoom scale, preserve that by returning 0, which will be converted to the minimum
@@ -134,21 +113,18 @@
     return contentScale;
 }
 
-- (CGPoint)maximumContentOffset
-{
+- (CGPoint)maximumContentOffset {
     CGSize contentSize = self.contentSize;
     CGSize boundsSize = self.bounds.size;
     return CGPointMake(contentSize.width - boundsSize.width, contentSize.height - boundsSize.height);
 }
 
-- (CGPoint)minimumContentOffset
-{
+- (CGPoint)minimumContentOffset {
     return CGPointZero;
 }
 
 // Adjusts content offset and scale to try to preserve the old zoomscale and center.
-- (void)restoreCenterPoint:(CGPoint)oldCenter scale:(CGFloat)oldScale
-{    
+- (void)restoreCenterPoint:(CGPoint)oldCenter scale:(CGFloat)oldScale {    
     // Step 1: restore zoom scale, first making sure it is within the allowable range.
     self.zoomScale = MIN(self.maximumZoomScale, MAX(self.minimumZoomScale, oldScale));
     
@@ -156,7 +132,7 @@
     // Step 2: restore center point, first making sure it is within the allowable range.
     
     // 2a: convert our desired center point back to our own coordinate space
-    CGPoint boundsCenter = [self convertPoint:oldCenter fromView:imageView];
+    CGPoint boundsCenter = [self convertPoint:oldCenter fromView:self.imageView];
     // 2b: calculate the content offset that would yield that center point
     CGPoint offset = CGPointMake(boundsCenter.x - self.bounds.size.width / 2.0, 
                                  boundsCenter.y - self.bounds.size.height / 2.0);

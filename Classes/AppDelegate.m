@@ -50,30 +50,15 @@
 
 @implementation AppDelegate
 
-@synthesize window;
-@synthesize viewController;
-
-
-#pragma mark -
-#pragma mark Application lifecycle
+#pragma mark - Application lifecycle
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {    
     
     // Add the view controller's view to the window and display.
-    [window addSubview:viewController.view];
-    [window makeKeyAndVisible];
+    [self.window addSubview:self.viewController.view];
+    [self.window makeKeyAndVisible];
 
     return YES;
 }
-
-#pragma mark -
-#pragma mark Memory management
-
-- (void)dealloc {
-    [viewController release];
-    [window release];
-    [super dealloc];
-}
-
 
 @end

@@ -2,18 +2,15 @@
 
 @class ImageScrollView;
 
-@interface PhotoViewController : UIViewController <UIScrollViewDelegate> {
-    UIScrollView *pagingScrollView;
-    
-    NSMutableSet *recycledPages;
-    NSMutableSet *visiblePages;
+@interface PhotoViewController : UIViewController <UIScrollViewDelegate>
 
+@property (nonatomic, strong) UIScrollView *pagingScrollView;
+@property (nonatomic, strong) NSMutableSet *recycledPages;
+@property (nonatomic, strong) NSMutableSet *visiblePages;
 
-    // these values are stored off before we start rotation so we adjust our content offset appropriately during rotation
-    int           firstVisiblePageIndexBeforeRotation;
-    CGFloat       percentScrolledIntoFirstVisiblePage;
-}
-
+// these values are stored off before we start rotation so we adjust our content offset appropriately during rotation
+@property (nonatomic, assign) int firstVisiblePageIndexBeforeRotation;
+@property (nonatomic, assign) CGFloat percentScrolledIntoFirstVisiblePage;
 
 - (void)configurePage:(ImageScrollView *)page forIndex:(NSUInteger)index;
 - (BOOL)isDisplayingPageForIndex:(NSUInteger)index;

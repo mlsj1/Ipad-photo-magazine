@@ -49,13 +49,10 @@
 
 @class PhotoViewController;
 
-@interface AppDelegate : NSObject <UIApplicationDelegate> {
-    UIWindow *window;
-    PhotoViewController *viewController;
-}
+@interface AppDelegate : NSObject <UIApplicationDelegate>
 
-@property (nonatomic, retain) IBOutlet UIWindow *window;
-@property (nonatomic, retain) IBOutlet PhotoViewController *viewController;
+@property (nonatomic, strong) IBOutlet UIWindow *window;
+@property (nonatomic, strong) IBOutlet PhotoViewController *viewController;
 
 @end
 
